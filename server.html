@@ -1,0 +1,997 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#3f51b5">
+<title>Console TYN</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+:root{--primary:#3f51b5;--primary-dark:#303f9f;--primary-light:#7986cb;--accent:#ff4081;--danger:#f44336;--success:#4ade80;--warning:#fbbf24;--bg-term:#0a0a0a;--term-fs:13px}
+html,body{height:100%}
+body{font-family:Roboto,'Helvetica Neue',Arial,sans-serif;background:#f5f5f5;color:#212121;overflow:hidden;height:100dvh;-webkit-user-select:none;user-select:none}
+.view{position:absolute;inset:0;display:none;flex-direction:column;overflow:hidden;background:#f5f5f5}
+.view.active{display:flex}
+svg{display:block}
+.appbar{height:56px;background:linear-gradient(180deg,var(--primary),var(--primary-dark));color:#fff;display:flex;align-items:center;padding:0 4px;box-shadow:0 2px 4px rgba(0,0,0,.28);z-index:10;flex-shrink:0}
+.appbar .icon-btn{width:48px;height:48px;display:flex;align-items:center;justify-content:center;background:transparent;border:none;color:#fff;cursor:pointer;border-radius:50%;flex-shrink:0}
+.appbar .icon-btn:active{background:rgba(255,255,255,.18)}
+.appbar h1{font-size:18px;font-weight:500;margin-left:8px;letter-spacing:.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1}
+.appbar .pill{background:rgba(255,255,255,.2);padding:5px 10px;border-radius:12px;font-size:12px;font-weight:600;display:flex;align-items:center;gap:5px;margin-right:8px}
+.appbar .pill.online{background:rgba(74,222,128,.3)}
+.appbar .pill.offline{background:rgba(244,67,54,.3)}
+
+.content{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:12px 12px 24px;background:#f5f5f5}
+.banner{width:100%;aspect-ratio:16/9;background:linear-gradient(135deg,#3f51b5,#7e57c2 55%,#ec407a);overflow:hidden;position:relative;flex-shrink:0;border-radius:6px;margin-bottom:12px}
+.banner img{width:100%;height:100%;object-fit:cover;display:block}
+.banner-overlay{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#fff;text-shadow:0 2px 8px rgba(0,0,0,.55);pointer-events:none}
+.banner-overlay .logo{font-size:44px;font-weight:800;letter-spacing:.14em;line-height:1}
+.banner-overlay .tag{font-size:10px;letter-spacing:.35em;margin-top:6px;opacity:.9}
+
+.card{background:#fff;border-radius:6px;box-shadow:0 1px 3px rgba(0,0,0,.12),0 1px 2px rgba(0,0,0,.24);margin-bottom:12px;padding:14px}
+.card-title{font-size:13px;font-weight:600;color:#424242;text-transform:uppercase;letter-spacing:.08em;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between}
+.card-title .badge{background:#e0e0e0;color:#424242;padding:2px 8px;border-radius:10px;font-size:11px;text-transform:none;letter-spacing:0}
+
+.stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:12px}
+.stat{background:#fff;border-radius:6px;box-shadow:0 1px 3px rgba(0,0,0,.12);padding:14px;position:relative;overflow:hidden}
+.stat::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--primary),var(--accent))}
+.stat.green::before{background:linear-gradient(90deg,#4ade80,#22c55e)}
+.stat.red::before{background:linear-gradient(90deg,#f87171,#ef4444)}
+.stat.gold::before{background:linear-gradient(90deg,#fbbf24,#f59e0b)}
+.stat-label{font-size:10px;text-transform:uppercase;letter-spacing:.09em;color:#757575;margin-bottom:4px;font-weight:600}
+.stat-value{font-size:22px;font-weight:700;color:#212121;line-height:1.1}
+.stat-value.green{color:#2e7d32}.stat-value.red{color:#c62828}.stat-value.gold{color:#b45309}
+
+.conn-card{display:flex;align-items:center;gap:12px}
+.conn-icon{width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;background:#e0e0e0;transition:background .2s}
+.conn-icon.online{background:linear-gradient(135deg,#4ade80,#22c55e)}
+.conn-icon.offline{background:linear-gradient(135deg,#f87171,#ef4444)}
+.conn-icon.checking{background:linear-gradient(135deg,#fbbf24,#f59e0b);animation:pulse 1s infinite}
+.conn-icon svg{fill:#fff;width:22px;height:22px}
+.conn-info{flex:1;min-width:0}
+.conn-info .st{font-size:14px;font-weight:600;margin-bottom:2px}
+.conn-info .hint{font-size:11px;color:#757575;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:10px 16px;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;border:none;border-radius:4px;cursor:pointer;background:linear-gradient(135deg,var(--primary),var(--primary-dark));color:#fff;box-shadow:0 2px 5px rgba(0,0,0,.22);font-family:inherit}
+.btn:active{transform:translateY(1px)}
+.btn.full{width:100%}
+.btn.secondary{background:#eceff1;color:#37474f;box-shadow:0 1px 3px rgba(0,0,0,.15)}
+.btn.success{background:linear-gradient(135deg,#4ade80,#22c55e);color:#fff}
+.btn.danger{background:linear-gradient(135deg,#f87171,#ef4444);color:#fff}
+.btn.warning{background:linear-gradient(135deg,#fbbf24,#f59e0b);color:#fff}
+.btn[disabled]{opacity:.5;pointer-events:none}
+.btn svg{width:16px;height:16px;fill:currentColor}
+.btn-row{display:flex;gap:8px;flex-wrap:wrap}
+
+.input-group{margin-bottom:12px}
+.input-group label{display:block;font-size:11px;color:#757575;font-weight:600;margin-bottom:5px;text-transform:uppercase;letter-spacing:.05em}
+.input-group input,.input-group select,.input-group textarea{width:100%;padding:10px 12px;font-size:13px;border:1px solid #e0e0e0;border-radius:4px;outline:none;font-family:inherit;background:#fafafa;color:#212121}
+.input-group input:focus,.input-group select:focus,.input-group textarea:focus{border-color:var(--primary);background:#fff}
+
+table{width:100%;border-collapse:collapse;font-size:12px}
+th{text-align:left;padding:8px 10px;color:#757575;font-size:10px;text-transform:uppercase;letter-spacing:.08em;border-bottom:1px solid #e0e0e0;font-weight:700}
+td{padding:9px 10px;border-bottom:1px solid #f5f5f5;font-size:12px;color:#424242}
+tr:hover td{background:#fafafa}
+td.mono{font-family:'Roboto Mono','Courier New',monospace;font-size:11px}
+td.ok{color:#2e7d32;font-weight:600}
+td.err{color:#c62828;font-weight:600}
+td.warn{color:#b45309;font-weight:600}
+td.muted{color:#9e9e9e}
+
+.empty{text-align:center;padding:36px 20px;color:#9e9e9e}
+.empty svg{width:56px;height:56px;margin:0 auto 12px;fill:#e0e0e0}
+.empty h3{font-size:14px;color:#616161;margin-bottom:6px;font-weight:600}
+.empty p{font-size:12px;line-height:1.5}
+
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(80px);background:#323232;color:#fff;padding:12px 20px;border-radius:4px;font-size:13px;font-weight:500;box-shadow:0 4px 12px rgba(0,0,0,.4);opacity:0;pointer-events:none;transition:all .25s;z-index:400;max-width:88%;text-align:center}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+.toast.success{background:#2e7d32}
+.toast.error{background:#c62828}
+.toast.warning{background:#ef6c00}
+
+.sidebar-overlay{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:50;opacity:0;pointer-events:none;transition:opacity .22s}
+.sidebar-overlay.show{opacity:1;pointer-events:auto}
+.sidebar{position:fixed;top:0;bottom:0;left:0;width:280px;max-width:82vw;background:#fff;z-index:51;transform:translateX(-100%);transition:transform .25s cubic-bezier(.4,0,.2,1);display:flex;flex-direction:column;box-shadow:3px 0 12px rgba(0,0,0,.35)}
+.sidebar.show{transform:translateX(0)}
+.sidebar-banner{width:100%;aspect-ratio:16/9;background:linear-gradient(135deg,#3f51b5,#7e57c2 55%,#ec407a);overflow:hidden;position:relative;flex-shrink:0}
+.sidebar-banner img{width:100%;height:100%;object-fit:cover;display:block}
+.sidebar-banner .banner-overlay .logo{font-size:26px;letter-spacing:.1em}
+.sidebar-banner .banner-overlay .tag{font-size:9px;letter-spacing:.3em}
+.sidebar-items{flex:1;overflow-y:auto;padding:8px 0}
+.sidebar-header{padding:12px 20px 4px;font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:#9e9e9e;font-weight:700}
+.sidebar-item{display:flex;align-items:center;gap:14px;padding:11px 20px;cursor:pointer;color:#424242;font-size:13px;font-weight:500}
+.sidebar-item:active{background:#eee}
+.sidebar-item.active{background:#e8eaf6;color:#303f9f;font-weight:600;border-left:3px solid var(--primary);padding-left:17px}
+.sidebar-item svg{width:20px;height:20px;fill:#616161;flex-shrink:0}
+.sidebar-item.active svg{fill:#303f9f}
+.sidebar-divider{height:1px;background:#e0e0e0;margin:8px 0}
+.sidebar-footer{padding:12px 20px;border-top:1px solid #eee;font-size:11px;color:#9e9e9e;text-align:center}
+.sidebar-footer b{color:var(--primary)}
+
+.term-box{background:#0a0a0a;border-radius:6px;padding:12px;font-family:'JetBrains Mono','Courier New',monospace;font-size:12px;color:#e0e0e0;white-space:pre-wrap;word-break:break-all;line-height:1.5;min-height:200px;max-height:52vh;overflow-y:auto;-webkit-user-select:text;user-select:text}
+.term-box .t-cmd{color:#7dd3fc}
+.term-box .t-ok{color:#4ade80}
+.term-box .t-err{color:#f87171}
+.term-box .t-warn{color:#fbbf24}
+.term-box .t-dim{color:#6b7280}
+
+.term-input-row{display:flex;gap:6px;margin-top:8px}
+.term-input-row input{flex:1;background:#0a0a0a;border:1px solid #2a2a2a;color:#4ade80;padding:10px 12px;border-radius:4px;font-family:'JetBrains Mono',monospace;font-size:12px;outline:none}
+.term-input-row input:focus{border-color:var(--primary)}
+
+.code{background:#0a0a0a;color:#e0e0e0;padding:12px;border-radius:4px;font-family:'Roboto Mono','Courier New',monospace;font-size:11px;line-height:1.55;white-space:pre-wrap;word-break:break-all;max-height:400px;overflow-y:auto;-webkit-user-select:text;user-select:text}
+
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:300;display:none;align-items:center;justify-content:center;padding:20px}
+.modal-overlay.show{display:flex}
+.modal{background:#fff;border-radius:8px;box-shadow:0 12px 32px rgba(0,0,0,.45);width:100%;max-width:400px;overflow:hidden;animation:popIn .18s ease;max-height:90vh;display:flex;flex-direction:column;color:#212121}
+.modal-title{padding:18px 20px 4px;font-size:16px;font-weight:600;color:#212121}
+.modal-body{padding:8px 20px 16px;overflow-y:auto;font-size:14px;color:#424242;line-height:1.5}
+.modal-actions{display:flex;justify-content:flex-end;padding:6px 12px 12px;gap:2px;border-top:1px solid #eee}
+.modal-actions button{background:transparent;border:none;padding:10px 16px;font-size:13px;font-weight:600;text-transform:uppercase;color:var(--primary);cursor:pointer;border-radius:3px;font-family:inherit}
+.modal-actions button.danger{color:var(--danger)}
+
+.info-banner{background:#e3f2fd;color:#1565c0;padding:10px 12px;border-radius:4px;font-size:12px;margin-bottom:12px;line-height:1.5;border-left:3px solid #1565c0}
+.warn-banner{background:#fff3e0;color:#e65100;padding:10px 12px;border-radius:4px;font-size:12px;margin-bottom:12px;line-height:1.5;border-left:3px solid #e65100}
+.err-banner{background:#ffebee;color:#c62828;padding:10px 12px;border-radius:4px;font-size:12px;margin-bottom:12px;line-height:1.5;border-left:3px solid #c62828}
+
+::-webkit-scrollbar{width:6px;height:6px}
+::-webkit-scrollbar-thumb{background:rgba(0,0,0,.18);border-radius:3px}
+.term-box::-webkit-scrollbar-thumb,.code::-webkit-scrollbar-thumb{background:rgba(255,255,255,.15)}
+
+.spinner{display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:sp .8s linear infinite;vertical-align:middle}
+</style>
+</head>
+<body>
+
+<div id="app-view" class="view active">
+  <div class="appbar">
+    <button class="icon-btn" onclick="admin.openSidebar()"><svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M3 6h18v2H3V6zm0 5h18v2H3v-2zm0 5h18v2H3v-2z"/></svg></button>
+    <h1 id="page-title">Console TYN</h1>
+    <div class="pill offline" id="status-pill" onclick="admin.refreshStatus()">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>
+      <span id="status-label">...</span>
+    </div>
+  </div>
+  <div class="content" id="content">
+
+    <div class="page" data-page="dashboard">
+      <div class="banner">
+        <img src="banner.jpg" alt="banner" onerror="this.style.display='none'">
+        <div class="banner-overlay"><div class="logo">TYN</div><div class="tag">TERMINAL Y NETWORK</div></div>
+      </div>
+
+      <div class="card conn-card">
+        <div class="conn-icon checking" id="conn-icon"><svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg></div>
+        <div class="conn-info">
+          <div class="st" id="conn-st">Checking...</div>
+          <div class="hint" id="conn-hint">Menghubungkan...</div>
+        </div>
+        <button class="btn" onclick="admin.testConnection()">Test</button>
+      </div>
+
+      <div class="stat-grid">
+        <div class="stat green"><div class="stat-label">Server</div><div class="stat-value" id="stat-server">—</div></div>
+        <div class="stat"><div class="stat-label">Uptime</div><div class="stat-value" id="stat-uptime">—</div></div>
+        <div class="stat gold"><div class="stat-label">Tokens</div><div class="stat-value" id="stat-tokens">—</div></div>
+        <div class="stat"><div class="stat-label">Sessions</div><div class="stat-value" id="stat-sessions">—</div></div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Aktivasi Server <span class="badge" id="state-badge">—</span></div>
+        <div class="input-group">
+          <label>API Token</label>
+          <input id="token-input" type="password" placeholder="tyn_xxxxxxxxxxxxxxxxxxxxx" autocomplete="off">
+        </div>
+        <div class="btn-row">
+          <button class="btn success" style="flex:1" onclick="admin.enableServer()">▶ Enable</button>
+          <button class="btn warning" style="flex:1" onclick="admin.disableServer()">⏸ Disable</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Quick Actions</div>
+        <div class="btn-row">
+          <button class="btn secondary" onclick="admin.showPage('apis')">🎫 Generate API</button>
+          <button class="btn secondary" onclick="admin.showPage('terminal')">⌨ Terminal</button>
+          <button class="btn secondary" onclick="window.open('/index.html','_blank')">📱 Buka App</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Bridge Info</div>
+        <div id="bridge-info"><div class="empty"><p>Masukkan token untuk melihat info bridge</p></div></div>
+      </div>
+    </div>
+
+    <div class="page" data-page="server" style="display:none">
+      <div class="card">
+        <div class="card-title">Server Control</div>
+        <div class="info-banner">Kontrol status server bridge. Perubahan state berlaku langsung.</div>
+        <div class="btn-row" style="margin-bottom:10px">
+          <button class="btn success full" onclick="admin.enableServer()">▶ Enable Server</button>
+        </div>
+        <div class="btn-row" style="margin-bottom:10px">
+          <button class="btn warning full" onclick="admin.disableServer()">⏸ Disable Server</button>
+        </div>
+        <div class="btn-row" style="margin-bottom:10px">
+          <button class="btn secondary full" onclick="admin.restartServer()">↻ Restart Node</button>
+        </div>
+        <div class="btn-row">
+          <button class="btn danger full" onclick="admin.killServer()">⛔ Full Shutdown</button>
+        </div>
+        <div class="warn-banner" style="margin-top:12px">
+          <b>⚠ Catatan:</b> Full Shutdown akan mematikan node process. Untuk restart lagi, jalankan <code>bash tyn.sh</code> dari terminal.
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Status Detail</div>
+        <div id="server-status-detail"><div class="empty"><p>Loading...</p></div></div>
+      </div>
+    </div>
+
+    <div class="page" data-page="apis" style="display:none">
+      <div class="card">
+        <div class="card-title">Generate API <span class="badge">1-day trial</span></div>
+        <div class="info-banner">Generate token otomatis dengan masa aktif 1 hari.</div>
+        <button class="btn full success" onclick="admin.generateApi()">🎫 Generate 1-Day Trial Token</button>
+        <div id="gen-result" style="margin-top:12px"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">API Tokens <span class="badge" id="api-count">0</span></div>
+        <div id="apis-list"><div class="empty"><p>Loading...</p></div></div>
+        <div class="btn-row" style="margin-top:10px">
+          <button class="btn secondary" onclick="admin.loadApis()">↻ Refresh</button>
+          <button class="btn warning" onclick="admin.cleanupApis()">🧹 Cleanup</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="page" data-page="terminal" style="display:none">
+      <div class="card">
+        <div class="card-title">Terminal</div>
+        <div class="info-banner">Eksekusi shell command lewat bridge. Koneksi persistent.</div>
+        <div class="term-box" id="term-out">Menunggu koneksi...</div>
+        <div class="term-input-row">
+          <input id="term-cmd" placeholder="pkg install python" onkeypress="if(event.key==='Enter')admin.execCmd()">
+          <button class="btn" onclick="admin.execCmd()">Run</button>
+          <button class="btn secondary" onclick="document.getElementById('term-out').innerHTML='';">✕</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="page" data-page="sessions" style="display:none">
+      <div class="card">
+        <div class="card-title">Active Sessions <span class="badge" id="sess-count">0</span></div>
+        <div id="sessions-list"><div class="empty"><p>Loading...</p></div></div>
+        <div class="btn-row" style="margin-top:10px">
+          <button class="btn secondary" onclick="admin.loadSessions()">↻ Refresh</button>
+          <button class="btn danger" onclick="admin.resetAllSessions()">Reset All</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="page" data-page="config" style="display:none">
+      <div class="card">
+        <div class="card-title">Bridge Configuration</div>
+        <div class="info-banner">Edit konfigurasi bridge (config.json). Perubahan butuh restart.</div>
+        <div id="config-editor"><div class="empty"><p>Loading...</p></div></div>
+        <div class="btn-row" style="margin-top:10px">
+          <button class="btn secondary" onclick="admin.loadConfig()">↻ Reload</button>
+          <button class="btn" onclick="admin.saveConfig()">💾 Save Config</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="page" data-page="modes" style="display:none">
+      <div class="card">
+        <div class="card-title">Bridge Modes</div>
+        <div class="info-banner">Pilih preset konfigurasi. Mode akan mengganti shell, term, dan fitur.</div>
+        <div id="modes-list"></div>
+      </div>
+    </div>
+
+    <div class="page" data-page="files" style="display:none">
+      <div class="card">
+        <div class="card-title">Project Files</div>
+        <div class="info-banner">Download file konfigurasi dari server.</div>
+        <div id="files-list"><div class="empty"><p>Loading...</p></div></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Nano Files</div>
+        <div id="nano-files-list"><div class="empty"><p>Loading...</p></div></div>
+        <button class="btn secondary full" style="margin-top:10px" onclick="admin.loadNanoFiles()">↻ Refresh</button>
+      </div>
+    </div>
+
+    <div class="page" data-page="system" style="display:none">
+      <div class="card">
+        <div class="card-title">Health Check</div>
+        <div id="health-list"><div class="empty"><p>Loading...</p></div></div>
+        <button class="btn secondary full" style="margin-top:10px" onclick="admin.runHealth()">↻ Run Check</button>
+      </div>
+      <div class="card">
+        <div class="card-title">System Info</div>
+        <div id="system-info"><div class="empty"><p>Loading...</p></div></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Recent Logs</div>
+        <div class="code" id="logs-box">Loading...</div>
+        <button class="btn secondary full" style="margin-top:10px" onclick="admin.loadLogs()">↻ Refresh</button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<div class="sidebar-overlay" id="sidebar-overlay" onclick="admin.closeSidebar()"></div>
+<div class="sidebar" id="sidebar">
+  <div class="sidebar-banner">
+    <img src="banner1.jpg" alt="banner1" onerror="this.src='banner.jpg';this.onerror=null">
+    <div class="banner-overlay"><div class="logo">TYN</div><div class="tag">CONSOLE</div></div>
+  </div>
+  <div class="sidebar-items">
+    <div class="sidebar-header">Main</div>
+    <div class="sidebar-item active" data-page="dashboard" onclick="admin.showPage('dashboard')">
+      <svg viewBox="0 0 24 24"><path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z"/></svg>
+      <span>Dashboard</span>
+    </div>
+    <div class="sidebar-item" data-page="server" onclick="admin.showPage('server')">
+      <svg viewBox="0 0 24 24"><path d="M20 13H4c-.55 0-1 .45-1 1v6c0 .55.45 1 1 1h16c.55 0 1-.45 1-1v-6c0-.55-.45-1-1-1zM7 19c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zM20 3H4c-.55 0-1 .45-1 1v6c0 .55.45 1 1 1h16c.55 0 1-.45 1-1V4c0-.55-.45-1-1-1zM7 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2z"/></svg>
+      <span>Server Control</span>
+    </div>
+    <div class="sidebar-item" data-page="apis" onclick="admin.showPage('apis')">
+      <svg viewBox="0 0 24 24"><path d="M21 10h-8.35A5.99 5.99 0 0 0 7 6c-3.31 0-6 2.69-6 6s2.69 6 6 6a5.99 5.99 0 0 0 5.65-4H13l2 2 2-2 2 2 4-4.04L21 10z"/></svg>
+      <span>API Manager</span>
+    </div>
+    <div class="sidebar-item" data-page="terminal" onclick="admin.showPage('terminal')">
+      <svg viewBox="0 0 24 24"><path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zM7 17l-5-5 1.4-1.4L7 14.2l8.6-8.6L17 7l-10 10z"/></svg>
+      <span>Terminal</span>
+    </div>
+
+    <div class="sidebar-divider"></div>
+    <div class="sidebar-header">Manage</div>
+    <div class="sidebar-item" data-page="sessions" onclick="admin.showPage('sessions')">
+      <svg viewBox="0 0 24 24"><path d="M4 6h16v2H4zm0 5h16v2H4zm0 5h16v2H4z"/></svg>
+      <span>Sessions</span>
+    </div>
+    <div class="sidebar-item" data-page="config" onclick="admin.showPage('config')">
+      <svg viewBox="0 0 24 24"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58a.49.49 0 0 0 .12-.61l-1.92-3.32a.488.488 0 0 0-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54a.484.484 0 0 0-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58a.49.49 0 0 0-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg>
+      <span>Config</span>
+    </div>
+    <div class="sidebar-item" data-page="modes" onclick="admin.showPage('modes')">
+      <svg viewBox="0 0 24 24"><path d="M12 2l-5.5 9h11z"/><circle cx="17.5" cy="17.5" r="4.5"/><path d="M3 13.5h9v9H3z"/></svg>
+      <span>Bridge Modes</span>
+    </div>
+    <div class="sidebar-item" data-page="files" onclick="admin.showPage('files')">
+      <svg viewBox="0 0 24 24"><path d="M10 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z"/></svg>
+      <span>Files</span>
+    </div>
+    <div class="sidebar-item" data-page="system" onclick="admin.showPage('system')">
+      <svg viewBox="0 0 24 24"><path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z"/></svg>
+      <span>System</span>
+    </div>
+
+    <div class="sidebar-divider"></div>
+    <div class="sidebar-item" onclick="window.open('/index.html','_blank')">
+      <svg viewBox="0 0 24 24"><path d="M19 19H5V5h7V3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2v-7h-2v7zM14 3v2h3.59l-9.83 9.83 1.41 1.41L19 6.41V10h2V3h-7z"/></svg>
+      <span>Open Main App</span>
+    </div>
+  </div>
+  <div class="sidebar-footer">Console TYN · v1.0.1-beta</div>
+</div>
+
+<div class="modal-overlay" id="dialog-overlay">
+  <div class="modal">
+    <div class="modal-title" id="dialog-title">Konfirmasi</div>
+    <div class="modal-body"><div id="dialog-message">Lanjutkan?</div></div>
+    <div class="modal-actions">
+      <button id="dialog-cancel">Batal</button>
+      <button id="dialog-ok">OK</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const admin = {
+  token: localStorage.getItem('tyn_admin_token') || '',
+  ws: null,
+  wsReady: false,
+  wsQueue: [],
+  cmdBuffer: '',
+  cmdResolver: null,
+  currentPage: 'dashboard',
+  modeList: [
+    { id: 'standard', label: 'Standard', desc: 'Semua fitur aktif (bash, webrun, flutter, nano, sessions)' },
+    { id: 'flutter',  label: 'Flutter',  desc: 'Optimized untuk build APK (flutter on, webrun off)' },
+    { id: 'python',   label: 'Python',   desc: 'Python dev focus (bash, webrun on)' },
+    { id: 'webdev',   label: 'Web Dev',  desc: 'Web development (webrun on, flutter off)' },
+    { id: 'minimal',  label: 'Minimal',  desc: 'Terminal only (xterm, no webrun/flutter)' },
+    { id: 'power',    label: 'Power',    desc: 'Semua fitur maximal' },
+    { id: 'lite',     label: 'Lite',     desc: 'Lightweight (sh shell, no extras)' }
+  ],
+
+  init(){
+    document.getElementById('token-input').value = this.token;
+    this.testConnection(true);
+    this.renderModes();
+    setInterval(() => this.refreshStatus(true), 15000);
+  },
+
+  baseUrl(){ return location.origin; },
+  async api(path, opts={}){
+    if (!this.token) throw new Error('Token belum diisi');
+    const url = this.baseUrl() + path + (path.includes('?') ? '&' : '?') + 'token=' + encodeURIComponent(this.token);
+    const headers = Object.assign({ 'X-API-Token': this.token }, opts.headers || {});
+    if (opts.json){ headers['Content-Type'] = 'application/json'; opts.body = JSON.stringify(opts.json); delete opts.json; }
+    const res = await fetch(url, Object.assign({}, opts, { headers }));
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    return res.json();
+  },
+
+  toast(msg, type){
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.className = 'toast show ' + (type || '');
+    clearTimeout(this._tt);
+    this._tt = setTimeout(() => t.classList.remove('show'), 3000);
+  },
+  confirm(title, message, danger){
+    return new Promise(resolve => {
+      const ov = document.getElementById('dialog-overlay');
+      document.getElementById('dialog-title').textContent = title;
+      document.getElementById('dialog-message').textContent = message;
+      const okBtn = document.getElementById('dialog-ok');
+      okBtn.className = danger ? 'danger' : '';
+      ov.classList.add('show');
+      const done = r => { ov.classList.remove('show'); okBtn.onclick = null; document.getElementById('dialog-cancel').onclick = null; resolve(r); };
+      okBtn.onclick = () => done(true);
+      document.getElementById('dialog-cancel').onclick = () => done(false);
+    });
+  },
+
+  openSidebar(){ document.getElementById('sidebar').classList.add('show'); document.getElementById('sidebar-overlay').classList.add('show'); },
+  closeSidebar(){ document.getElementById('sidebar').classList.remove('show'); document.getElementById('sidebar-overlay').classList.remove('show'); },
+
+  showPage(name){
+    this.closeSidebar();
+    this.currentPage = name;
+    document.querySelectorAll('.page').forEach(p => p.style.display = p.getAttribute('data-page') === name ? '' : 'none');
+    document.querySelectorAll('.sidebar-item[data-page]').forEach(el => el.classList.toggle('active', el.getAttribute('data-page') === name));
+    const titles = { dashboard: 'Console TYN', server: 'Server Control', apis: 'API Manager', terminal: 'Terminal', sessions: 'Sessions', config: 'Config', modes: 'Bridge Modes', files: 'Files', system: 'System' };
+    document.getElementById('page-title').textContent = titles[name] || 'Console TYN';
+    document.getElementById('content').scrollTop = 0;
+    if (name === 'apis') this.loadApis();
+    if (name === 'sessions') this.loadSessions();
+    if (name === 'config') this.loadConfig();
+    if (name === 'files') { this.loadFiles(); this.loadNanoFiles(); }
+    if (name === 'system') { this.runHealth(); this.loadSystemInfo(); this.loadLogs(); }
+    if (name === 'terminal') this.connectWS();
+    if (name === 'modes') this.renderModes();
+    if (name === 'server') this.loadServerDetail();
+  },
+
+  saveToken(){
+    this.token = document.getElementById('token-input').value.trim();
+    localStorage.setItem('tyn_admin_token', this.token);
+    this.toast('Token disimpan', 'success');
+    if (this.ws){ try { this.ws.close(); } catch(_){} this.ws = null; this.wsReady = false; }
+    this.testConnection();
+  },
+
+  async testConnection(silent){
+    const icon = document.getElementById('conn-icon');
+    const st = document.getElementById('conn-st');
+    const hint = document.getElementById('conn-hint');
+    if (!silent){ icon.className = 'conn-icon checking'; st.textContent = 'Checking...'; hint.textContent = 'Menghubungkan...'; }
+    let ok = false, data = null, err = '';
+    try {
+      const res = await fetch(this.baseUrl() + '/check?token=' + encodeURIComponent(this.token), {
+        headers: { 'X-API-Token': this.token }
+      });
+      if (res.ok){ data = await res.json(); ok = true; }
+      else err = 'HTTP ' + res.status;
+    } catch(e){ err = e.message; }
+    if (ok){
+      icon.className = 'conn-icon online';
+      st.textContent = 'Terhubung';
+      hint.textContent = 'Bridge v' + data.version + ' · ' + data.execMode + ' · uptime ' + this.fmtTime(data.uptime);
+      document.getElementById('bridge-info').innerHTML = '<div class="code">' + this.esc(JSON.stringify(data, null, 2)) + '</div>';
+      document.getElementById('status-pill').className = 'pill online';
+      document.getElementById('status-label').textContent = 'ONLINE';
+      document.getElementById('state-badge').textContent = data.apiExpiresInHuman || 'active';
+    } else {
+      icon.className = 'conn-icon offline';
+      st.textContent = 'Tidak terhubung';
+      hint.textContent = err || 'Token salah / server offline';
+      document.getElementById('status-pill').className = 'pill offline';
+      document.getElementById('status-label').textContent = 'OFFLINE';
+    }
+    if (!silent) this.toast(ok ? 'Terhubung ✓' : 'Gagal: ' + err, ok ? 'success' : 'error');
+    this.refreshStatus(true);
+  },
+
+  async refreshStatus(silent){
+    try {
+      const res = await fetch(this.baseUrl() + '/api/state');
+      const d = await res.json();
+      document.getElementById('stat-server').textContent = (d.state || '?').toUpperCase();
+      document.getElementById('stat-server').className = 'stat-value ' + (d.state === 'on' ? 'green' : 'red');
+      document.getElementById('stat-tokens').textContent = d.validTokenCount || 0;
+      document.getElementById('stat-sessions').textContent = d.shells || 0;
+      document.getElementById('state-badge').textContent = (d.state || '?').toUpperCase();
+      if (d.state === 'on'){
+        document.getElementById('status-pill').className = 'pill online';
+        document.getElementById('status-label').textContent = 'SERVER ON';
+      } else {
+        document.getElementById('status-pill').className = 'pill offline';
+        document.getElementById('status-label').textContent = 'SERVER OFF';
+      }
+      if (this.token){
+        try {
+          const cres = await fetch(this.baseUrl() + '/check?token=' + encodeURIComponent(this.token), { headers: { 'X-API-Token': this.token } });
+          if (cres.ok){ const cd = await cres.json(); document.getElementById('stat-uptime').textContent = this.fmtTime(cd.uptime); }
+        } catch(_){}
+      }
+    } catch(_){}
+  },
+
+  fmtTime(sec){
+    sec = Math.floor(sec || 0);
+    if (sec < 60) return sec + 's';
+    if (sec < 3600) return Math.floor(sec/60) + 'm';
+    if (sec < 86400) return Math.floor(sec/3600) + 'h ' + Math.floor((sec%3600)/60) + 'm';
+    return Math.floor(sec/86400) + 'd ' + Math.floor((sec%86400)/3600) + 'h';
+  },
+
+  connectWS(){
+    return new Promise((resolve, reject) => {
+      if (this.ws && this.ws.readyState === 1){ this.wsReady = true; return resolve(); }
+      if (!this.token) return reject(new Error('Token kosong'));
+      const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+      try {
+        this.ws = new WebSocket(proto + '://' + location.host + '/term?token=' + encodeURIComponent(this.token) + '&session=admin_console');
+        const self = this;
+        this.ws.onopen = () => { self.wsReady = true; self.appendTerm('[connected]\n', 't-ok'); resolve(); };
+        this.ws.onmessage = ev => {
+          let msg = null;
+          try { msg = JSON.parse(ev.data); } catch(_){}
+          const txt = msg && msg.type === 'out' ? msg.data : ev.data;
+          if (msg && msg.type === 'error'){ self.appendTerm('[ERR] ' + msg.data + '\n', 't-err'); return; }
+          if (msg && msg.type === 'yn-prompt'){ self.appendTerm('\n[prompt] ' + msg.question + ' → jawab otomatis y\n', 't-warn'); self.sendRaw('y\n'); return; }
+          self.cmdBuffer += txt;
+          if (self.cmdResolver) self.cmdResolver(txt);
+        };
+        this.ws.onclose = () => { self.wsReady = false; self.appendTerm('\n[disconnected]\n', 't-warn'); };
+        this.ws.onerror = () => { self.wsReady = false; reject(new Error('WS error')); };
+        setTimeout(() => { if (!self.wsReady) reject(new Error('WS timeout')); }, 5000);
+      } catch(e){ reject(e); }
+    });
+  },
+
+  sendRaw(data){
+    if (this.ws && this.ws.readyState === 1){ this.ws.send(JSON.stringify({ type: 'input', data })); return true; }
+    return false;
+  },
+
+  async exec(cmd, opts={}){
+    await this.connectWS().catch(() => {});
+    if (!this.wsReady) throw new Error('WebSocket belum terhubung');
+    const id = 'TYN_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
+    const marker = '[[END_' + id + ']]';
+    const fullCmd = '( ' + cmd + ' ) 2>&1; echo "' + marker + '"';
+    return new Promise((resolve, reject) => {
+      let buffer = '';
+      const timeout = setTimeout(() => { this.cmdResolver = null; reject(new Error('Command timeout')); }, opts.timeout || 30000);
+      this.cmdResolver = chunk => {
+        buffer += chunk;
+        if (buffer.includes(marker)){
+          clearTimeout(timeout);
+          this.cmdResolver = null;
+          const clean = buffer.split(marker)[0];
+          resolve(clean);
+        }
+      };
+      this.ws.send(JSON.stringify({ type: 'input', data: fullCmd + '\n' }));
+    });
+  },
+
+  appendTerm(txt, cls){
+    const box = document.getElementById('term-out');
+    if (!box) return;
+    const clean = String(txt).replace(/\x1b\[[0-9;]*[a-zA-Z]/g, '');
+    const span = document.createElement('span');
+    if (cls) span.className = cls;
+    span.textContent = clean;
+    box.appendChild(span);
+    box.scrollTop = box.scrollHeight;
+  },
+
+  async execCmd(){
+    const inp = document.getElementById('term-cmd');
+    const cmd = inp.value.trim();
+    if (!cmd) return;
+    inp.value = '';
+    this.appendTerm('$ ' + cmd + '\n', 't-cmd');
+    try {
+      await this.connectWS();
+      this.ws.send(JSON.stringify({ type: 'exec', cmd }));
+    } catch(e){ this.appendTerm('[error] ' + e.message + '\n', 't-err'); }
+  },
+
+  async enableServer(){
+    this.token = document.getElementById('token-input').value.trim() || this.token;
+    if (!this.token){ this.toast('Masukkan token dulu', 'error'); return; }
+    localStorage.setItem('tyn_admin_token', this.token);
+    try {
+      await this.connectWS();
+      await this.exec('echo on > server.state && echo OK');
+      this.toast('Server enabled ✓', 'success');
+      this.refreshStatus();
+    } catch(e){ this.toast('Gagal: ' + e.message, 'error'); }
+  },
+  async disableServer(){
+    try {
+      await this.connectWS();
+      await this.exec('echo off > server.state && echo OK');
+      this.toast('Server disabled', 'warning');
+      this.refreshStatus();
+    } catch(e){ this.toast('Gagal: ' + e.message, 'error'); }
+  },
+  async restartServer(){
+    const ok = await this.confirm('Restart Server', 'Restart node process? Session akan terputus sebentar.');
+    if (!ok) return;
+    try {
+      await this.connectWS();
+      const pid = await this.exec('cat .server.pid 2>/dev/null');
+      if (pid.trim()){
+        await this.exec("nohup bash -c 'sleep 2 && kill " + pid.trim() + " && sleep 1 && nohup node bridge.js >> bridge.log 2>&1 &' > /dev/null 2>&1 &");
+        this.toast('Restarting...', 'warning');
+        setTimeout(() => { this.testConnection(); }, 5000);
+      } else this.toast('PID tidak ditemukan', 'error');
+    } catch(e){ this.toast('Gagal: ' + e.message, 'error'); }
+  },
+  async killServer(){
+    const ok = await this.confirm('Full Shutdown', 'Kill node process? Server tidak bisa diakses sampai anda jalankan tyn.sh lagi.', true);
+    if (!ok) return;
+    try {
+      await this.connectWS();
+      const pid = await this.exec('cat .server.pid 2>/dev/null');
+      if (pid.trim()){
+        await this.exec("nohup bash -c 'sleep 2 && kill -9 " + pid.trim() + "' > /dev/null 2>&1 &");
+        this.toast('Server shutting down...', 'warning');
+        setTimeout(() => { this.wsReady = false; this.testConnection(); }, 4000);
+      } else this.toast('PID tidak ditemukan', 'error');
+    } catch(e){ this.toast('Gagal: ' + e.message, 'error'); }
+  },
+
+  async loadServerDetail(){
+    const box = document.getElementById('server-status-detail');
+    try {
+      const d = await this.exec('cat server.state 2>/dev/null; echo "---"; cat .server.pid 2>/dev/null; echo "---"; ps aux 2>/dev/null | grep -v grep | grep bridge.js | head -1');
+      const parts = d.split('---').map(s => s.trim());
+      const state = parts[0] || 'off';
+      const pid = parts[1] || 'n/a';
+      const proc = parts[2] || 'not running';
+      box.innerHTML = '<table><tr><td>State</td><td class="mono ' + (state === 'on' ? 'ok' : 'err') + '">' + state.toUpperCase() + '</td></tr><tr><td>PID</td><td class="mono">' + (pid || '—') + '</td></tr><tr><td>Process</td><td class="mono muted" style="font-size:10px">' + (this.esc(proc.slice(0,80)) || '—') + '</td></tr></table>';
+    } catch(e){ box.innerHTML = '<div class="err-banner">' + this.esc(e.message) + '</div>'; }
+  },
+
+  async loadApis(){
+    const box = document.getElementById('apis-list');
+    box.innerHTML = '<div class="empty"><div class="spinner"></div></div>';
+    try {
+      const out = await this.exec('cat apis.json 2>/dev/null');
+      const match = out.match(/\{[\s\S]*\}/);
+      if (!match) throw new Error('No JSON');
+      const d = JSON.parse(match[0]);
+      const apis = d.apis || [];
+      const now = Date.now();
+      document.getElementById('api-count').textContent = apis.length;
+      if (!apis.length){ box.innerHTML = '<div class="empty"><p>Belum ada token</p></div>'; return; }
+      let html = '<table><thead><tr><th>#</th><th>Token</th><th>Status</th><th>Expires</th><th></th></tr></thead><tbody>';
+      apis.forEach((a, i) => {
+        let st = 'active', cls = 'ok';
+        if (a.revoked){ st = 'revoked'; cls = 'err'; }
+        else if (a.expiresAt && now > a.expiresAt){ st = 'expired'; cls = 'warn'; }
+        let exp = 'never';
+        if (a.expiresAt){
+          const rem = a.expiresAt - now;
+          if (rem > 0) exp = this.fmtTime(rem/1000);
+          else exp = 'expired';
+        }
+        const tok = (a.token || '').slice(0, 20) + '...';
+        html += '<tr><td class="mono">' + (i+1) + '</td><td class="mono">' + this.esc(tok) + '</td><td class="' + cls + '">' + st + '</td><td class="muted">' + exp + '</td><td><button class="btn danger" style="padding:5px 10px;font-size:10px" onclick="admin.revokeApi(' + i + ')">Revoke</button></td></tr>';
+      });
+      html += '</tbody></table>';
+      box.innerHTML = html;
+    } catch(e){ box.innerHTML = '<div class="err-banner">' + this.esc(e.message) + '</div>'; }
+  },
+
+  async generateApi(){
+    const box = document.getElementById('gen-result');
+    box.innerHTML = '<div class="info-banner">⏳ Generating token...</div>';
+    try {
+      const script = "node -e 'const fs=require(\"fs\");try{const d=JSON.parse(fs.readFileSync(\"apis.json\",\"utf8\"));const t=\"tyn_\"+require(\"crypto\").randomBytes(20).toString(\"hex\");const n=Date.now();d.apis=d.apis||[];d.apis.push({token:t,label:\"Trial 1 day\",duration:\"1 day\",createdAt:n,expiresAt:n+86400000,revoked:false});fs.writeFileSync(\"apis.json\",JSON.stringify(d,null,2));process.stdout.write(\"TOKEN:\"+t);}catch(e){process.stdout.write(\"ERR:\"+e.message);}'";
+      const out = await this.exec(script);
+      const m = out.match(/TOKEN:(tyn_[a-f0-9]{40})/);
+      if (!m) throw new Error('No token in output: ' + out.slice(0, 100));
+      const token = m[1];
+      box.innerHTML = '<div class="info-banner" style="background:#e8f5e9;color:#2e7d32;border-left-color:#2e7d32"><b>✓ API Generated (1-day trial)</b></div><div class="input-group"><label>Token</label><input value="' + this.esc(token) + '" readonly onclick="this.select()"></div><div class="btn-row"><button class="btn" style="flex:1" onclick="navigator.clipboard.writeText(\'' + this.esc(token) + '\');admin.toast(\'Token copied\',\'success\')">📋 Copy</button><button class="btn success" style="flex:1" onclick="document.getElementById(\'token-input\').value=\'' + this.esc(token) + '\';document.getElementById(\'token-input\').dispatchEvent(new Event(\'input\'))">✓ Use</button></div>';
+      this.toast('Token berhasil dibuat', 'success');
+      this.loadApis();
+    } catch(e){ box.innerHTML = '<div class="err-banner">Gagal: ' + this.esc(e.message) + '</div>'; }
+  },
+
+  async revokeApi(idx){
+    const ok = await this.confirm('Revoke Token', 'Token akan di-revoke permanen?', true);
+    if (!ok) return;
+    try {
+      const script = "node -e 'const fs=require(\"fs\");const d=JSON.parse(fs.readFileSync(\"apis.json\",\"utf8\"));if(d.apis[" + idx + "]){d.apis[" + idx + "].revoked=true;fs.writeFileSync(\"apis.json\",JSON.stringify(d,null,2));process.stdout.write(\"OK\");}else{process.stdout.write(\"ERR:not found\");}'";
+      const out = await this.exec(script);
+      if (out.includes('OK')){ this.toast('Revoked', 'success'); this.loadApis(); }
+      else this.toast('Gagal', 'error');
+    } catch(e){ this.toast('Error: ' + e.message, 'error'); }
+  },
+
+  async cleanupApis(){
+    const ok = await this.confirm('Cleanup Tokens', 'Hapus semua token expired/revoked?');
+    if (!ok) return;
+    try {
+      const script = "node -e 'const fs=require(\"fs\");const d=JSON.parse(fs.readFileSync(\"apis.json\",\"utf8\"));const now=Date.now();const before=(d.apis||[]).length;d.apis=(d.apis||[]).filter(a=>!a.revoked&&(!a.expiresAt||a.expiresAt>now));fs.writeFileSync(\"apis.json\",JSON.stringify(d,null,2));process.stdout.write(\"OK:\"+(before-d.apis.length));'";
+      const out = await this.exec(script);
+      this.toast('Cleanup: ' + ((out.match(/OK:(\d+)/)||[])[1] || '?') + ' removed', 'success');
+      this.loadApis();
+    } catch(e){ this.toast('Error: ' + e.message, 'error'); }
+  },
+
+  async loadSessions(){
+    const box = document.getElementById('sessions-list');
+    box.innerHTML = '<div class="empty"><div class="spinner"></div></div>';
+    try {
+      const d = await this.api('/api/sessions');
+      const list = d.sessions || [];
+      document.getElementById('sess-count').textContent = list.length;
+      if (!list.length){ box.innerHTML = '<div class="empty"><p>Tidak ada session aktif</p></div>'; return; }
+      let html = '<table><thead><tr><th>ID</th><th>Mode</th><th>Clients</th><th>Idle</th><th></th></tr></thead><tbody>';
+      list.forEach(s => {
+        html += '<tr><td class="mono">' + this.esc(s.id.slice(0, 20)) + '</td><td>' + this.esc(s.mode || '?') + '</td><td>' + (s.clients || 0) + '</td><td class="muted">' + this.fmtTime(s.idleFor / 1000) + '</td><td><button class="btn danger" style="padding:5px 10px;font-size:10px" onclick="admin.resetSession(\'' + this.esc(s.id) + '\')">Reset</button></td></tr>';
+      });
+      html += '</tbody></table>';
+      box.innerHTML = html;
+    } catch(e){ box.innerHTML = '<div class="err-banner">' + this.esc(e.message) + '</div>'; }
+  },
+
+  async resetSession(id){
+    try {
+      await this.api('/api/sessions/' + encodeURIComponent(id) + '/reset', { method: 'POST' });
+      this.toast('Session reset', 'success');
+      this.loadSessions();
+    } catch(e){ this.toast('Error: ' + e.message, 'error'); }
+  },
+  async resetAllSessions(){
+    const ok = await this.confirm('Reset All', 'Reset semua session aktif?', true);
+    if (!ok) return;
+    try {
+      const d = await this.api('/api/sessions');
+      for (const s of (d.sessions || [])){
+        await this.api('/api/sessions/' + encodeURIComponent(s.id) + '/reset', { method: 'POST' });
+      }
+      this.toast('All reset', 'success');
+      this.loadSessions();
+    } catch(e){ this.toast('Error: ' + e.message, 'error'); }
+  },
+
+  async loadConfig(){
+    const box = document.getElementById('config-editor');
+    box.innerHTML = '<div class="empty"><div class="spinner"></div></div>';
+    try {
+      const out = await this.exec('cat config.json 2>/dev/null');
+      const match = out.match(/\{[\s\S]*\}/);
+      if (!match) throw new Error('No JSON');
+      const d = JSON.parse(match[0]);
+      let html = '';
+      const flat = (obj, prefix='') => {
+        for (const k of Object.keys(obj)){
+          const key = prefix ? prefix + '.' + k : k;
+          const v = obj[k];
+          if (v && typeof v === 'object' && !Array.isArray(v)) flat(v, key);
+          else {
+            const val = typeof v === 'string' ? v : JSON.stringify(v);
+            html += '<div class="input-group"><label>' + this.esc(key) + '</label><input data-key="' + this.esc(key) + '" value="' + this.esc(val) + '"></div>';
+          }
+        }
+      };
+      flat(d);
+      box.innerHTML = html;
+    } catch(e){ box.innerHTML = '<div class="err-banner">' + this.esc(e.message) + '</div>'; }
+  },
+
+  async saveConfig(){
+    const inputs = document.querySelectorAll('#config-editor input[data-key]');
+    const patch = {};
+    inputs.forEach(inp => {
+      const key = inp.getAttribute('data-key');
+      let val = inp.value;
+      if (/^\d+$/.test(val)) val = +val;
+      else if (val === 'true' || val === 'false') val = val === 'true';
+      patch[key] = val;
+    });
+    try {
+      const jsObj = JSON.stringify(patch).replace(/"/g, '\\"');
+      const script = "node -e 'const fs=require(\"fs\");const patch=JSON.parse(\"" + jsObj + "\");const d=JSON.parse(fs.readFileSync(\"config.json\",\"utf8\"));for(const path in patch){const parts=path.split(\".\");let cur=d;for(let i=0;i<parts.length-1;i++){if(!cur[parts[i]]||typeof cur[parts[i]]!==\"object\")cur[parts[i]]={};cur=cur[parts[i]];}cur[parts[parts.length-1]]=patch[path];}fs.writeFileSync(\"config.json\",JSON.stringify(d,null,2));process.stdout.write(\"OK\");'";
+      const out = await this.exec(script);
+      if (out.includes('OK')){ this.toast('Config saved. Restart untuk apply.', 'success'); }
+      else this.toast('Gagal save', 'error');
+    } catch(e){ this.toast('Error: ' + e.message, 'error'); }
+  },
+
+  renderModes(){
+    const box = document.getElementById('modes-list');
+    let html = '';
+    this.modeList.forEach(m => {
+      html += '<div class="card" style="margin-bottom:8px;padding:12px"><div style="display:flex;justify-content:space-between;align-items:center"><div style="flex:1;min-width:0"><div style="font-size:14px;font-weight:600;color:#212121">' + m.label + '</div><div style="font-size:11px;color:#757575;margin-top:2px">' + m.desc + '</div></div><button class="btn" style="padding:7px 12px;font-size:11px" onclick="admin.applyMode(\'' + m.id + '\')">Apply</button></div></div>';
+    });
+    box.innerHTML = html;
+  },
+
+  async applyMode(mode){
+    const presets = {
+      standard: { shell: 'bash', termType: 'xterm-256color', features: { webrun: true, flutter: true, nano: true, sessions: true } },
+      flutter:  { shell: 'bash', termType: 'xterm-256color', features: { webrun: false, flutter: true, nano: true, sessions: true } },
+      python:   { shell: 'bash', termType: 'xterm-256color', features: { webrun: true, flutter: false, nano: true, sessions: true } },
+      webdev:   { shell: 'bash', termType: 'xterm-256color', features: { webrun: true, flutter: false, nano: true, sessions: true } },
+      minimal:  { shell: 'bash', termType: 'xterm',          features: { webrun: false, flutter: false, nano: true, sessions: false } },
+      power:    { shell: 'bash', termType: 'xterm-256color', features: { webrun: true, flutter: true, nano: true, sessions: true } },
+      lite:     { shell: 'sh',   termType: 'xterm',          features: { webrun: false, flutter: false, nano: false, sessions: false } }
+    };
+    const p = presets[mode];
+    if (!p) return;
+    const ok = await this.confirm('Apply Mode', 'Set mode ke "' + mode + '"?');
+    if (!ok) return;
+    try {
+      const patchJson = JSON.stringify({ mode, shell: p.shell, termType: p.termType, features: p.features }).replace(/"/g, '\\"');
+      const script = "node -e 'const fs=require(\"fs\");const patch=JSON.parse(\"" + patchJson + "\");const d=JSON.parse(fs.readFileSync(\"config.json\",\"utf8\"));Object.assign(d,patch);fs.writeFileSync(\"config.json\",JSON.stringify(d,null,2));process.stdout.write(\"OK\");'";
+      const out = await this.exec(script);
+      if (out.includes('OK')){ this.toast('Mode → ' + mode + ' (restart untuk apply)', 'success'); }
+      else this.toast('Gagal apply', 'error');
+    } catch(e){ this.toast('Error: ' + e.message, 'error'); }
+  },
+
+  async loadFiles(){
+    const box = document.getElementById('files-list');
+    const files = ['apis.json', 'config.json', 'server.state', 'bridge.log'];
+    let html = '<table><thead><tr><th>File</th><th>Size</th><th></th></tr></thead><tbody>';
+    for (const f of files){
+      try {
+        const out = await this.exec('ls -la ' + f + " 2>/dev/null | awk '{print $5}'");
+        const size = (out.trim() || '').split('\n')[0].trim();
+        const sz = size && /^\d+$/.test(size) ? this.fmtBytes(+size) : '—';
+        html += '<tr><td class="mono">' + f + '</td><td class="muted">' + sz + '</td><td><button class="btn secondary" style="padding:5px 10px;font-size:10px" onclick="admin.downloadFile(\'' + f + '\')">⬇ Download</button></td></tr>';
+      } catch(_){}
+    }
+    html += '</tbody></table>';
+    box.innerHTML = html;
+  },
+
+  async downloadFile(name){
+    try {
+      const content = await this.exec('cat ' + name + ' 2>/dev/null');
+      const clean = ['apis.json','config.json'].includes(name) ? content.trim() : content;
+      const mime = ['apis.json','config.json'].includes(name) ? 'application/json' : 'text/plain';
+      const blob = new Blob([clean], { type: mime });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = name;
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      this.toast('Downloaded: ' + name, 'success');
+    } catch(e){ this.toast('Gagal: ' + e.message, 'error'); }
+  },
+
+  async loadNanoFiles(){
+    const box = document.getElementById('nano-files-list');
+    try {
+      const d = await this.api('/api/nano/files');
+      const files = d.files || [];
+      if (!files.length){ box.innerHTML = '<div class="empty"><p>Belum ada file nano</p></div>'; return; }
+      let html = '<table><thead><tr><th>Name</th><th>Size</th><th></th></tr></thead><tbody>';
+      files.forEach(f => {
+        html += '<tr><td class="mono">' + this.esc(f.name) + '</td><td class="muted">' + this.fmtBytes(f.size) + '</td><td><button class="btn secondary" style="padding:5px 10px;font-size:10px" onclick="admin.viewNano(\'' + this.esc(f.name).replace(/\'/g, "\\'") + '\')">View</button></td></tr>';
+      });
+      html += '</tbody></table>';
+      box.innerHTML = html;
+    } catch(e){ box.innerHTML = '<div class="empty"><p>' + this.esc(e.message) + '</p></div>'; }
+  },
+
+  async viewNano(name){
+    try {
+      const d = await this.api('/api/nano/get/' + encodeURIComponent(name));
+      const w = window.open('', '_blank');
+      w.document.write('<pre style="font-family:monospace;font-size:13px;padding:20px;background:#0a0a0a;color:#e0e0e0;min-height:100vh;margin:0;white-space:pre-wrap">' + this.esc(d.content) + '</pre>');
+    } catch(e){ this.toast('Gagal: ' + e.message, 'error'); }
+  },
+
+  async runHealth(){
+    const box = document.getElementById('health-list');
+    box.innerHTML = '<div class="empty"><div class="spinner"></div></div>';
+    const checks = [];
+    try {
+      const state = await this.exec('cat server.state 2>/dev/null');
+      checks.push({ label: 'Server state', ok: state.trim() === 'on', value: state.trim().toUpperCase() });
+    } catch(e){ checks.push({ label: 'Server state', ok: false, value: 'err' }); }
+    try {
+      const pid = await this.exec('cat .server.pid 2>/dev/null');
+      checks.push({ label: 'PID file', ok: !!pid.trim(), value: pid.trim() || 'missing' });
+    } catch(e){ checks.push({ label: 'PID file', ok: false, value: 'err' }); }
+    try {
+      const apis = await this.exec('cat apis.json 2>/dev/null');
+      const m = apis.match(/\{[\s\S]*\}/);
+      if (m){
+        const d = JSON.parse(m[0]);
+        const now = Date.now();
+        const valid = (d.apis || []).filter(a => !a.revoked && (!a.expiresAt || a.expiresAt > now)).length;
+        checks.push({ label: 'Valid tokens', ok: valid > 0, value: valid + ' valid' });
+      } else checks.push({ label: 'apis.json', ok: false, value: 'invalid' });
+    } catch(e){ checks.push({ label: 'apis.json', ok: false, value: 'err' }); }
+    try {
+      const cfg = await this.exec('cat config.json 2>/dev/null');
+      checks.push({ label: 'config.json', ok: !!cfg.trim(), value: cfg.trim() ? 'exists' : 'missing' });
+    } catch(e){ checks.push({ label: 'config.json', ok: false, value: 'err' }); }
+    try {
+      const node = await this.exec('command -v node >/dev/null 2>&1 && node -v');
+      checks.push({ label: 'Node.js', ok: !!node.trim(), value: node.trim() || 'missing' });
+    } catch(e){ checks.push({ label: 'Node.js', ok: false, value: 'err' }); }
+    let html = '<table><tbody>';
+    checks.forEach(c => {
+      html += '<tr><td>' + (c.ok ? '<span style="color:#2e7d32;font-weight:700">✓</span>' : '<span style="color:#c62828;font-weight:700">✗</span>') + ' ' + this.esc(c.label) + '</td><td class="mono ' + (c.ok ? 'ok' : 'err') + '">' + this.esc(c.value) + '</td></tr>';
+    });
+    html += '</tbody></table>';
+    box.innerHTML = html;
+  },
+
+  async loadSystemInfo(){
+    const box = document.getElementById('system-info');
+    try {
+      const out = await this.exec('uname -a; echo "---"; node -v 2>/dev/null; echo "---"; npm -v 2>/dev/null; echo "---"; pwd; echo "---"; ls -la 2>/dev/null | head -20');
+      const parts = out.split('---');
+      let html = '<table><tbody>';
+      html += '<tr><td>OS</td><td class="mono muted" style="font-size:10px">' + this.esc((parts[0]||'').trim().slice(0,80)) + '</td></tr>';
+      html += '<tr><td>Node</td><td class="mono">' + this.esc((parts[1]||'').trim()) + '</td></tr>';
+      html += '<tr><td>NPM</td><td class="mono">' + this.esc((parts[2]||'').trim()) + '</td></tr>';
+      html += '<tr><td>CWD</td><td class="mono">' + this.esc((parts[3]||'').trim()) + '</td></tr>';
+      html += '</tbody></table>';
+      const files = (parts[4] || '').trim().split('\n').filter(Boolean).slice(0, 10).map(l => {
+        const cols = l.split(/\s+/);
+        return '<tr><td class="mono">' + this.esc(cols[cols.length-1] || '') + '</td><td class="muted">' + (cols[4] || '') + '</td></tr>';
+      }).join('');
+      if (files){ html += '<div class="card-title" style="margin-top:14px">Files</div><table><tbody>' + files + '</tbody></table>'; }
+      box.innerHTML = html;
+    } catch(e){ box.innerHTML = '<div class="err-banner">' + this.esc(e.message) + '</div>'; }
+  },
+
+  async loadLogs(){
+    const box = document.getElementById('logs-box');
+    try {
+      const out = await this.exec('tail -n 50 bridge.log 2>/dev/null');
+      box.textContent = out.trim() || '(kosong)';
+    } catch(e){ box.textContent = 'Error: ' + e.message; }
+  },
+
+  fmtBytes(b){
+    if (b < 1024) return b + ' B';
+    if (b < 1048576) return (b/1024).toFixed(1) + ' KB';
+    if (b < 1073741824) return (b/1048576).toFixed(1) + ' MB';
+    return (b/1073741824).toFixed(2) + ' GB';
+  },
+  esc(s){ return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+};
+
+document.getElementById('token-input').addEventListener('change', () => admin.saveToken());
+admin.init();
+</script>
+</body>
+</html>
